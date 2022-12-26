@@ -14,19 +14,17 @@ import org.springframework.stereotype.Component;
 public class MyLoggingAspect {
     Logger logger= LoggerFactory.getLogger(MyLoggingAspect.class);
 
-    @Pointcut("@annotation(com.oleksiy.annotation.MyLoggingAnnotation)")
-   // @Pointcut("execution(* com.oleksiy.runner.Runner.printSomething(..))")
-  // @Pointcut("execution(* com.oleksiy.runner.Runner.*(..))")
+   // @Pointcut("@annotation(com.oleksiy.annotation.MyLoggingAnnotation)")
+    @Pointcut("execution(* com.oleksiy.runner.Runner.printSomething(..))")
+
     public void logIt(){}
 
     @Before("logIt()")
     public void doMyLogging(JoinPoint joinPoint){
-
         logger.warn("This AspectJ AOP Logging invoked BEFORE "+joinPoint.getSignature().toShortString());
     }
     @After("logIt()")
     public void doMyLoggingAfter(JoinPoint joinPoint){
-
         logger.warn("Method " +joinPoint.getSignature().toShortString() +" is done! Method parameter was "
                 + "\""+joinPoint.getArgs()[0]+"\"");
     }
