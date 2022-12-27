@@ -1,0 +1,36 @@
+I checked it online, and I believe it is about AspectJ.
+In Spring AOP we have the pointcut designators. (execution, within, @annotation etc.)
+
+But in AspectJ there are more. And one of them is called call
+call pointcut designator lets advices to run when a method is called.
+execution pointcut designator runs lets advices to run when a method is executed.
+
+As it says in the stackoverflow answer below, @annotation works when method is called (call) and also when method is executed(execute).
+
+That's why it runs advices twice. The reason I believe is about Spring's interaction with AspectJ.
+Because I couldn't find a pointcut designator called @annotation in AspectJ documentation.
+
+So I think Spring is matching it's own pointcut designators with AspectJ's for us to be able to use both.
+And @annotation, covers both call and execution it seems.
+
+Stackoverflow answer: https://stackoverflow.com/questions/64969593/why-does-aspectj-around-advice-execute-twice
+Spring AOP documentation(Pointcuts): https://docs.spring.io/spring-framework/docs/2.0.x/reference/aop.html
+AspectJ documentation(Pointcuts): https://www.eclipse.org/aspectj/doc/next/progguide/semantics-pointcuts.html
+
+The working code:
+    @Pointcut("@annotation(com.oleksiy.annotation.MyLoggingAnnotation) && execution(* *(..))")
+    public void logIt(){}
+
+    @Before("logIt()")
+    public void doMyLogging(JoinPoint joinPoint){
+        logger.warn("This AspectJ AOP Logging invoked BEFORE "+joinPoint.getSignature().toShortString());
+    }
+
+    @After("logIt()")
+    public void doMyLoggingAfter(JoinPoint joinPoint){
+        logger.warn("Method " +joinPoint.getSignature().toShortString() +" is done! Method parameter was "
+                + "\""+joinPoint.getArgs()[0]+"\"");
+    }
+
+
+Note: You can use call instead of execution and it should work. But when you make any change, you would need to do maven clean and maven install

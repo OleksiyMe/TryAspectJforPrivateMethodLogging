@@ -10,12 +10,14 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 @Aspect
-@Component
+//@Component    -- not needed for AspectJ
 public class MyLoggingAspect {
     Logger logger= LoggerFactory.getLogger(MyLoggingAspect.class);
 
+    //solution from Cundullah
+    @Pointcut("@annotation(com.oleksiy.annotation.MyLoggingAnnotation) && execution(* *(..))")
    // @Pointcut("@annotation(com.oleksiy.annotation.MyLoggingAnnotation)")
-    @Pointcut("execution(* com.oleksiy.runner.Runner.printSomething(..))")
+   // @Pointcut("execution(* com.oleksiy.runner.Runner.printSomething(..))")
 
     public void logIt(){}
 
@@ -25,7 +27,8 @@ public class MyLoggingAspect {
     }
     @After("logIt()")
     public void doMyLoggingAfter(JoinPoint joinPoint){
-        logger.warn("Method " +joinPoint.getSignature().toShortString() +" is done! Method parameter was "
+        logger.warn("Method " +joinPoint.getSignature().toShortString()
+                +" is done! Method parameter was "
                 + "\""+joinPoint.getArgs()[0]+"\"");
     }
 

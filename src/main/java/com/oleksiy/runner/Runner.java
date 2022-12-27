@@ -8,7 +8,7 @@ import org.springframework.stereotype.Component;
 @Component
 public class Runner implements ApplicationRunner {
     @Override
- //   @MyLoggingAnnotation
+  //  @MyLoggingAnnotation
     public void run(ApplicationArguments args) throws Exception {
         printSomething("Hello 123!");
     }

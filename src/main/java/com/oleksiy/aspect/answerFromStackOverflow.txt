@@ -1,0 +1,203 @@
+https://stackoverflow.com/questions/64969593/why-does-aspectj-around-advice-execute-twice
+
+Why does AspectJ @Around advice execute twice?
+Asked 2 years, 1 month ago
+Modified 1 year, 11 months ago
+Viewed 1k times
+
+6
+
+
+I have the following AspectJ example that I've done as a "hello world" style proof of concept. The advising code in the StyleAspect seems to execute twice even though the actual code in SomeClass only executes once (as required).
+
+Here's the code:
+
+Firstly, an annotation called WithStyle:
+
+@Retention(RetentionPolicy.RUNTIME)
+@Target(ElementType.METHOD)
+public @interface WithStyle {
+}
+Then, an aspect that intercepts any code with the @WithStyle annotation
+
+@Aspect
+public class StyleAspect {
+
+    @Around("@annotation(WithStyle)")
+    public Object doItWithStyle(ProceedingJoinPoint pjp) throws Throwable {
+        System.out.println("Doing it in style...");
+        Object result = pjp.proceed();
+        System.out.println("Done");
+
+        return result;
+    }
+}
+and finally, some code with the annotation
+
+public class SomeClass {
+
+    @WithStyle
+    public void doIt() {
+        System.out.println("I'm doing it....");
+    }
+}
+When I run this, I get the following output:
+
+--- exec-maven-plugin:1.2.1:exec (default-cli) @ AspectJTest ---
+Doing it in style...
+Doing it in style...
+I'm doing it....
+Done
+Done
+So it seems as if while the code itself only executes once, the code in the aspect is getting executed twice.
+
+Here's the calling code:
+
+public class Main {
+
+    public static void main(String[] args) {
+        SomeClass someClass = new SomeClass();
+        someClass.doIt();
+    }
+}
+and for completeness, I'm including the pom with the AspectJ plugin config
+
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <groupId>ie.philb</groupId>
+    <artifactId>AspectJTest</artifactId>
+    <version>1.0-SNAPSHOT</version>
+    <packaging>jar</packaging>
+
+    <properties>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <maven.compiler.source>1.8</maven.compiler.source>
+        <maven.compiler.target>1.8</maven.compiler.target>
+        <project.build.java.target>1.8</project.build.java.target>
+    </properties>
+
+    <dependencies>
+        <dependency>
+            <groupId>org.aspectj</groupId>
+            <artifactId>aspectjrt</artifactId>
+            <version>1.9.6</version>
+        </dependency>
+        <dependency>
+            <groupId>org.aspectj</groupId>
+            <artifactId>aspectjweaver</artifactId>
+            <version>1.9.6</version>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>aspectj-maven-plugin</artifactId>
+                <version>1.11</version>
+                <configuration>
+                    <complianceLevel>1.8</complianceLevel>
+                    <source>1.8</source>
+                    <target>1.8</target>
+                </configuration>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>compile</goal>       <!-- use this goal to weave all your main classes -->
+                            <goal>test-compile</goal>  <!-- use this goal to weave all your test classes -->
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+
+</project>
+javaaopaspectj
+Share
+Improve this question
+Follow
+asked Nov 23, 2020 at 13:41
+PhilDin's user avatar
+PhilDin
+2,72244 gold badges2222 silver badges3838 bronze badges
+Add a comment
+1 Answer
+Sorted by:
+
+Highest score (default)
+
+13
+
+
+Your around() advice is intercepting both the call and execution join points of the method annotated with @WithStyle (i.e., doIt()). If you add a System.out.println(pjp); to your aspect:
+
+@Aspect
+public class StyleAspect {
+
+    @Around("@annotation(WithStyle) ")
+    public Object doItWithStyle(ProceedingJoinPoint pjp) throws Throwable {
+        System.out.println(pjp);
+        System.out.println("Doing it in style...");
+        Object result;
+        try{
+            result = pjp.proceed();
+        }
+        finally{
+            System.out.println("Done");
+        }
+        return result;
+    }
+}
+you would get the following output:
+
+call(public void SomeClass.doIt()) <----
+Doing it in style...
+execution(public void SomeClass.doIt()) <----
+Doing it in style...
+I'm doing it....
+Done
+Done
+You can clearly see that the join points call and execution of method SomeClass.doIt() are being intercepted by the around advice doItWithStyle.
+
+From the interception of the call, the around advice is weaving the code as follows:
+
+// around advice code  before the pjp.proceed();
+someClass.doIt(); // during the pjp.proceed();
+// around advice code  after the pjp.proceed();
+consequently:
+
+ System.out.println("Doing it in style...");.
+ someClass.doIt();
+ System.out.println("Done");
+From the execution:
+
+@WithStyle
+public void doIt() {
+    // around advice code  before the pjp.proceed();
+    System.out.println("I'm doing it....");
+  // around advice code  after the pjp.proceed();
+}
+consequently:
+
+@WithStyle
+public void doIt() {
+    System.out.println("Doing it in style...");
+    System.out.println("I'm doing it....");
+    System.out.println("Done");
+}
+resulting in the output:
+
+Doing it in style...
+Doing it in style...
+I'm doing it....
+Done
+Done
+Now, if you want to avoid the around advice from intercepting both the call and the execution of the method doIt(). You need to further restrict the join points intercepted by your around advice. To just intercept the method call, you can do:
+
+ @Around("@annotation(WithStyle) && call(* *(..))")
+for the method execution:
+
+@Around("@annotation(WithStyle) && execution(* *(..))")
+You can further restrict the join points being intercepted based on the number of arguments of the method, its returning type, name, and so on, by tuning the signature of the call or execution pointcuts.
